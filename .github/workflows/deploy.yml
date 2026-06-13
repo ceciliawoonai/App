@@ -12,20 +12,36 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
 
-      - name: Push to HF
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Hugging Face Hub Library
+        run: pip install huggingface_hub
+
+      - name: Force Upload via Python API
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git config --global user.email "deploy@github.com"
-          git config --global user.name "GitHub Actions"
+          python -c '
+          import os
+          from huggingface_hub import HfApi
           
-          # Force create the mandatory configuration header Hugging Face requires
-          echo -e "---\ntitle: Main App Suite\nemoji: 🚀\ncolorFrom: indigo\ncolorTo: purple\nsdk: docker\napp_port: 7860\npinned: false\n---" > README.md
+          # Force generate the required header file locally
+          with open("README.md", "w") as f:
+              f.write("---\ntitle: Main App Suite\nemoji: 🚀\ncolorFrom: indigo\ncolorTo: purple\nsdk: docker\napp_port: 7860\npinned: false\n---")
           
-          git add README.md
-          git commit -m "Inject mandatory Hugging Face metadata config block" --allow-empty
+          # Initialize the official secure API transfer pipeline
+          api = HfApi(token=os.environ["HF_TOKEN"])
           
-          # CRITICAL FIX: Push directly using the inline token so bash expands it perfectly
-          git push --force https://ceciliaai:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/ceciliaai/main main
+          print("🚀 Syncing files directly to Hugging Face Space repository...")
+          api.upload_folder(
+              folder_path=".",
+              repo_id="ceciliaai/main",
+              repo_type="space",
+              delete_all_files=False
+          )
+          print("🎉 Sync Complete!")
+          '
