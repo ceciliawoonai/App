@@ -27,5 +27,5 @@ jobs:
           git add README.md
           git commit -m "Inject mandatory Hugging Face metadata config block" --allow-empty
           
-          git remote add hf https://ceciliaai:$HF_TOKEN@huggingface.co/spaces/ceciliaai/main || true
-          git push --force hf main
+          # CRITICAL FIX: Push directly using the inline token so bash expands it perfectly
+          git push --force https://ceciliaai:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/ceciliaai/main main
