@@ -18,4 +18,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git push --force https://ceciliaai:$HF_TOKEN@huggingface.co/spaces/ceciliawoonai/YOUR_SPACE_NAME main
+          https://ceciliaai:$HF_TOKEN@huggingface.co/spaces/ceciliaai/main main
