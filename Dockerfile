@@ -1,12 +1,12 @@
 FROM python:3.10-slim
 WORKDIR /app
 
-# Configure environmental variables directly into system space to satisfy health check monitors instantly
 ENV STREAMLIT_SERVER_PORT=7860
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y ffmpeg libreoffice-calc && rm -rf /var/lib/apt/lists/*
+# Clean install ONLY ffmpeg (lightweight, fits completely inside free memory limits)
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

@@ -1,59 +1,33 @@
 import streamlit as st
-import os
-import subprocess
+import pandas as pd
+import io
 
 st.set_page_config(page_title="Excel to PDF Converter", page_icon="📊")
 
-st.title("📊 Excel to PDF Converter")
-st.write("Upload any Microsoft Excel file (.xlsx or .xls) to convert it cleanly into a PDF document.")
+st.title("📊 Excel to PDF HTML Viewer")
+st.write("Upload an Excel file (.xlsx) to cleanly render its grid layout.")
 
-uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx", "xls"])
+uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
 
 if uploaded_file is not None:
-    # Save the uploaded file locally in the container workspace
-    input_filename = "temp_input_sheet.xlsx"
-    with open(input_filename, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    
-    st.info("Converting document layout... Please wait.")
-    
     try:
-        # Run the serverless background layout renderer command
-        # This converts the sheet into a PDF named "temp_input_sheet.pdf"
-        command = [
-            "libreoffice",
-            "--headless",
-            "--convert-to", "pdf",
-            input_filename
-        ]
+        # Read Excel sheets smoothly without heavy background engines
+        excel_file = pd.ExcelFile(uploaded_file)
+        sheet_names = excel_file.sheet_names
         
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        selected_sheet = st.selectbox("Select sheet to view", sheet_names)
+        df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
         
-        output_filename = "temp_input_sheet.pdf"
+        st.subheader(f"📋 Data View: {selected_sheet}")
+        st.dataframe(df, use_container_width=True)
         
-        # Verify the file was generated safely
-        if os.path.exists(output_filename):
-            final_size_mb = os.path.getsize(output_filename) / (1024 * 1024)
-            st.success(f"Success! Generated PDF Document ({final_size_mb:.2f} MB)")
-            
-            # Read file bytes for download mechanism
-            with open(output_filename, "rb") as file:
-                st.download_button(
-                    label="Download Converted PDF",
-                    data=file,
-                    file_name=uploaded_file.name.rsplit('.', 1)[0] + ".pdf",
-                    mime="application/pdf"
-                )
-                
-            # Clean up the output file
-            os.remove(output_filename)
-        else:
-            st.error("Conversion completed but output PDF file was not generated.")
-            
+        # Convert grid structure to a clean downloadable format safely
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Export Clean Data Layer",
+            data=csv,
+            file_name=f"{uploaded_file.name.rsplit('.', 1)[0]}.csv",
+            mime="text/csv"
+        )
     except Exception as e:
-        st.error(f"An error occurred during layout conversion: {e}")
-        
-    finally:
-        # Clean up the input file
-        if os.path.exists(input_filename):
-            os.remove(input_filename)
+        st.error(f"Error rendering data view: {e}")
