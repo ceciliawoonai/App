@@ -4,8 +4,8 @@ FROM python:3.10-slim
 # Set working directory inside the container
 WORKDIR /app
 
-# Install system dependencies (like FFmpeg for audio processing)
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (FFmpeg for audio, LibreOffice for sheets)
+RUN apt-get update && apt-get install -y ffmpeg libreoffice-calc && rm -rf /var/lib/apt/lists/*
 
 # Copy package requirements and install them
 COPY requirements.txt .
@@ -17,5 +17,5 @@ COPY . .
 # Hugging Face Docker containers must run on port 7860
 EXPOSE 7860
 
-# Command to launch the Streamlit dashboard on the proper port
-CMD ["streamlit", "run", "Home.py", "--server.port=7860", "--server.address=0.0.0.0"]
+# Command to launch the Streamlit dashboard on the proper port with XSRF disabled
+CMD ["streamlit", "run", "Home.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.enableXsrfProtection=false", "--server.enableCORS=false"]
