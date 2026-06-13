@@ -40,8 +40,7 @@ jobs:
           api.upload_folder(
               folder_path=".",
               repo_id="ceciliaai/main",
-              repo_type="space",
-              delete_all_files=False
+              repo_type="space"
           )
           print("🎉 Sync Complete!")
           '
