@@ -17,5 +17,5 @@ COPY . .
 # Hugging Face Docker containers must run on port 7860
 EXPOSE 7860
 
-# Command to launch the Streamlit dashboard on the proper port with XSRF disabled
-CMD ["streamlit", "run", "Home.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.enableXsrfProtection=false", "--server.enableCORS=false"]
+# Force-bind to proper host settings using native array execution syntax
+CMD ["streamlit", "run", "Home.py", "--server.port=7860", "--server.address=0.0.0.0", "--server.enableXsrfProtection=false", "--server.enableCORS=false", "--browser.gatherUsageStats=false"]
