@@ -1,6 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import base64
+import os
 
 st.set_page_config(page_title="Interactive PDF Writer", page_icon="✍️", layout="wide")
 
@@ -10,18 +11,25 @@ st.write("Upload a PDF, click anywhere directly on the document canvas to write 
 uploaded_file = st.file_uploader("Upload your document to begin editing", type=["pdf"])
 
 if uploaded_file is not None:
-    # Encode the PDF data to Base64 so the browser engine can inject it safely
+    # Read the base64 code of the uploaded PDF
     pdf_bytes = uploaded_file.read()
     base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
     
-    # Complete Embedded Frontend Editor Workspace (HTML5 + PDF-Lib + Canvas Engine)
-    # Note: Double curly braces are used to prevent Python f-string syntax errors!
+    # Read local JavaScript code files into memory strings
+    with open("static/pdf-lib.min.js", "r", encoding="utf-8") as f:
+        pdflib_code = f.read()
+    with open("static/pdf.min.js", "r", encoding="utf-8") as f:
+        pdfjs_code = f.read()
+    with open("static/pdf.worker.min.js", "r", encoding="utf-8") as f:
+        worker_code = f.read()
+
     editor_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <script src="https://unpkg.com"></script>
-        <script src="https://cloudflare.com"></script>
+        <!-- Inject code layers natively to bypass CDN iframe sandboxing completely -->
+        <script>{pdflib_code}</script>
+        <script>{pdfjs_code}</script>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 0; padding: 10px; background: #f0f2f6; }}
             #toolbar {{ background: #ffffff; padding: 10px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; gap: 15px; align-items: center; }}
@@ -45,6 +53,11 @@ if uploaded_file is not None:
         </div>
 
         <script>
+            // Setup worker process via inline data blob allocation mapping tricks
+            const workerBlob = new Blob([`{worker_code}`], {{ type: 'application/javascript' }});
+            const workerUrl = URL.createObjectURL(workerBlob);
+            pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+
             const pdfData = atob("{base64_pdf}");
             const uint8Data = new Uint8Array(pdfData.length);
             for (let i = 0; i < pdfData.length; i++) {{
@@ -57,8 +70,6 @@ if uploaded_file is not None:
             let ctx = canvas.getContext('2d');
             let viewportScale = 1.3; 
             let annotations = [];
-
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cloudflare.com';
             
             pdfjsLib.getDocument({{data: uint8Data}}).promise.then(pdf => {{
                 pdfDoc = pdf;
@@ -119,7 +130,7 @@ if uploaded_file is not None:
                 const {{ PDFDocument, rgb, StandardFonts }} = PDFLib;
                 const existingPdfDoc = await PDFDocument.load(uint8Data);
                 const pages = existingPdfDoc.getPages();
-                const firstPage = pages[0]; // targets first page
+                const firstPage = pages[0];
                 const {{ width, height }} = firstPage.getSize();
                 const helveticaFont = await existingPdfDoc.embedFont(StandardFonts.Helvetica);
 
@@ -149,4 +160,4 @@ if uploaded_file is not None:
     </html>
     """
     
-    components.html(editor_html, height=900, scrolling=True)
+    components.html(editor_html, height=1000, scrolling=True)
