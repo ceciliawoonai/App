@@ -20,5 +20,12 @@ jobs:
         run: |
           git config --global user.email "deploy@github.com"
           git config --global user.name "GitHub Actions"
+          
+          # Force create the mandatory configuration header Hugging Face requires
+          echo -e "---\ntitle: Main App Suite\nemoji: 🚀\ncolorFrom: indigo\ncolorTo: purple\nsdk: docker\napp_port: 7860\npinned: false\n---" > README.md
+          
+          git add README.md
+          git commit -m "Inject mandatory Hugging Face metadata config block" --allow-empty
+          
           git remote add hf https://ceciliaai:$HF_TOKEN@huggingface.co/spaces/ceciliaai/main || true
           git push --force hf main
