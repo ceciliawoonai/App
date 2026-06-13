@@ -7,7 +7,6 @@ st.set_page_config(page_title="Interactive PDF Writer", page_icon="✍️", layo
 st.title("✍️ Interactive Adobe-Style PDF Writer")
 st.write("Upload a PDF, click anywhere directly on the document canvas to write text, and save your modifications.")
 
-# Initialize file upload interface
 uploaded_file = st.file_uploader("Upload your document to begin editing", type=["pdf"])
 
 if uploaded_file is not None:
@@ -16,6 +15,7 @@ if uploaded_file is not None:
     base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
     
     # Complete Embedded Frontend Editor Workspace (HTML5 + PDF-Lib + Canvas Engine)
+    # Note: Double curly braces are used to prevent Python f-string syntax errors!
     editor_html = f"""
     <!DOCTYPE html>
     <html>
@@ -58,7 +58,6 @@ if uploaded_file is not None:
             let viewportScale = 1.3; 
             let annotations = [];
 
-            // Initialize rendering viewport via PDF.js core library links
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cloudflare.com';
             
             pdfjsLib.getDocument({{data: uint8Data}}).promise.then(pdf => {{
@@ -80,7 +79,6 @@ if uploaded_file is not None:
                 }});
             }}
 
-            // Event handler to capture click coordinates on document canvas layout
             document.getElementById('canvas-container').addEventListener('click', function(e) {{
                 if (e.target.id !== 'pdf-canvas') return;
 
@@ -102,7 +100,6 @@ if uploaded_file is not None:
                 container.appendChild(input);
                 input.focus();
 
-                // Save coordinate configurations on loss of focus
                 input.addEventListener('blur', function() {{
                     if (input.innerText.trim() !== '') {{
                         annotations.push({{
@@ -118,17 +115,15 @@ if uploaded_file is not None:
                 }});
             }}
 
-            // Merge dynamic coordinate text collections onto structural PDF bytes via PDF-Lib
             async function savePDF() {{
                 const {{ PDFDocument, rgb, StandardFonts }} = PDFLib;
                 const existingPdfDoc = await PDFDocument.load(uint8Data);
                 const pages = existingPdfDoc.getPages();
-                const firstPage = pages[0];
+                const firstPage = pages[0]; // targets first page
                 const {{ width, height }} = firstPage.getSize();
                 const helveticaFont = await existingPdfDoc.embedFont(StandardFonts.Helvetica);
 
                 for (let annot of annotations) {{
-                    // Scale local canvas click vectors into core PDF layout points
                     let pdfX = (annot.x / annot.canvasWidth) * width;
                     let pdfY = height - ((annot.y / annot.canvasHeight) * height) - 10; 
 
@@ -139,11 +134,10 @@ if uploaded_file is not None:
                         font: helveticaFont,
                         color: rgb(0, 0, 0),
                     }});
-                }
+                }}
 
                 const pdfBytes = await existingPdfDoc.save();
                 
-                // Trigger download mechanism directly inside the sandboxed iframe interface
                 let blob = new Blob([pdfBytes], {{ type: "application/pdf" }});
                 let link = document.createElement('a');
                 link.href = window.URL.createObjectURL(blob);
@@ -155,5 +149,4 @@ if uploaded_file is not None:
     </html>
     """
     
-    # Render the dynamic interactive editor component using explicit pixel frames
     components.html(editor_html, height=900, scrolling=True)
