@@ -1,130 +1,159 @@
 import streamlit as st
-from pypdf import PdfReader, PdfWriter
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-import io
-import os
+import streamlit.components.v1 as components
+import base64
 
-st.set_page_config(page_title="Smart PDF Filler", page_icon="✍️")
+st.set_page_config(page_title="Interactive PDF Writer", page_icon="✍️", layout="wide")
 
-st.title("✍️ Smart PDF Filler & Signer")
-st.write("Upload any PDF to fill native form fields, or manually stamp custom text onto a flat document.")
+st.title("✍️ Interactive Adobe-Style PDF Writer")
+st.write("Upload a PDF, click anywhere directly on the document canvas to write text, and save your modifications.")
 
-uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
+# Initialize file upload interface
+uploaded_file = st.file_uploader("Upload your document to begin editing", type=["pdf"])
 
 if uploaded_file is not None:
-    # Read file data
-    reader = PdfReader(uploaded_file)
-    num_pages = len(reader.pages)
+    # Encode the PDF data to Base64 so the browser engine can inject it safely
+    pdf_bytes = uploaded_file.read()
+    base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
     
-    # Check for interactive fields
-    fields = reader.get_fields()
+    # Complete Embedded Frontend Editor Workspace (HTML5 + PDF-Lib + Canvas Engine)
+    editor_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <script src="https://unpkg.com"></script>
+        <script src="https://cloudflare.com"></script>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 0; padding: 10px; background: #f0f2f6; }}
+            #toolbar {{ background: #ffffff; padding: 10px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; gap: 15px; align-items: center; }}
+            .btn {{ background: #ff4b4b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }}
+            .btn:hover {{ background: #e03e3e; }}
+            #canvas-container {{ position: relative; display: inline-block; background: #ffffff; border: 1px solid #ccc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }}
+            #pdf-canvas {{ display: block; z-index: 1; }}
+            .text-annotation {{ position: absolute; border: 1px dashed #ff4b4b; background: transparent; font-family: Helvetica; font-size: 14px; padding: 2px; outline: none; z-index: 10; min-width: 50px; color: black; }}
+            .hint {{ color: #555; font-size: 14px; }}
+        </style>
+    </head>
+    <body>
+
+        <div id="toolbar">
+            <button class="btn" onclick="savePDF()">💾 Export & Download PDF</button>
+            <span class="hint">💡 <b>How to Edit:</b> Click anywhere directly on the page layout below to start typing text!</span>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="pdf-canvas"></canvas>
+        </div>
+
+        <script>
+            const pdfData = atob("{base64_pdf}");
+            const uint8Data = new Uint8Array(pdfData.length);
+            for (let i = 0; i < pdfData.length; i++) {{
+                uint8Data[i] = pdfData.charCodeAt(i);
+            }}
+
+            let pdfDoc = null;
+            let pageNum = 1;
+            let canvas = document.getElementById('pdf-canvas');
+            let ctx = canvas.getContext('2d');
+            let viewportScale = 1.3; 
+            let annotations = [];
+
+            // Initialize rendering viewport via PDF.js core library links
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cloudflare.com';
+            
+            pdfjsLib.getDocument({{data: uint8Data}}).promise.then(pdf => {{
+                pdfDoc = pdf;
+                renderPage(pageNum);
+            }});
+
+            function renderPage(num) {{
+                pdfDoc.getPage(num).then(page => {{
+                    let viewport = page.getViewport({{scale: viewportScale}});
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    let renderContext = {{
+                        canvasContext: ctx,
+                        viewport: viewport
+                    }};
+                    page.render(renderContext);
+                }});
+            }}
+
+            // Event handler to capture click coordinates on document canvas layout
+            document.getElementById('canvas-container').addEventListener('click', function(e) {{
+                if (e.target.id !== 'pdf-canvas') return;
+
+                let rect = canvas.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                let y = e.clientY - rect.top;
+
+                createTextField(x, y);
+            }});
+
+            function createTextField(x, y) {{
+                let container = document.getElementById('canvas-container');
+                let input = document.createElement('div');
+                input.className = 'text-annotation';
+                input.contentEditable = true;
+                input.style.left = x + 'px';
+                input.style.top = y + 'px';
+                
+                container.appendChild(input);
+                input.focus();
+
+                // Save coordinate configurations on loss of focus
+                input.addEventListener('blur', function() {{
+                    if (input.innerText.trim() !== '') {{
+                        annotations.push({{
+                            text: input.innerText,
+                            x: x,
+                            y: y,
+                            canvasHeight: canvas.height,
+                            canvasWidth: canvas.width
+                        }});
+                    }} else {{
+                        input.remove();
+                    }}
+                }});
+            }}
+
+            // Merge dynamic coordinate text collections onto structural PDF bytes via PDF-Lib
+            async function savePDF() {{
+                const {{ PDFDocument, rgb, StandardFonts }} = PDFLib;
+                const existingPdfDoc = await PDFDocument.load(uint8Data);
+                const pages = existingPdfDoc.getPages();
+                const firstPage = pages[0];
+                const {{ width, height }} = firstPage.getSize();
+                const helveticaFont = await existingPdfDoc.embedFont(StandardFonts.Helvetica);
+
+                for (let annot of annotations) {{
+                    // Scale local canvas click vectors into core PDF layout points
+                    let pdfX = (annot.x / annot.canvasWidth) * width;
+                    let pdfY = height - ((annot.y / annot.canvasHeight) * height) - 10; 
+
+                    firstPage.drawText(annot.text, {{
+                        x: pdfX,
+                        y: pdfY,
+                        size: 14,
+                        font: helveticaFont,
+                        color: rgb(0, 0, 0),
+                    }});
+                }
+
+                const pdfBytes = await existingPdfDoc.save();
+                
+                // Trigger download mechanism directly inside the sandboxed iframe interface
+                let blob = new Blob([pdfBytes], {{ type: "application/pdf" }});
+                let link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.download = "edited_document.pdf";
+                link.click();
+            }}
+        </script>
+    </body>
+    </html>
+    """
     
-    if fields:
-        st.success(f"📊 Interactive PDF Form Detected ({len(fields)} fields)")
-        field_values = {}
-        with st.form("interactive_form"):
-            st.subheader("📝 Fill out form fields:")
-            for field_name in fields:
-                field_values[field_name] = st.text_input(label=f"Field: {field_name}", value="")
-            
-            submit_interactive = st.form_submit_button("Generate Interactive PDF")
-            
-        if submit_interactive:
-            writer = PdfWriter()
-            for page in reader.pages:
-                writer.add_page(page)
-            writer.update_page_form_field_values(writer.pages, field_values)
-            
-            output = io.BytesIO()
-            writer.write(output)
-            st.balloons()
-            st.download_button(
-                label="📥 Download Filled Form",
-                data=output.getvalue(),
-                file_name=f"filled_{uploaded_file.name}",
-                mime="application/pdf"
-            )
-            
-    else:
-        st.info("📄 Flat PDF Layout Detected (No interactive fields found). Switching to manual text-stamping mode.")
-        
-        # Initialize session state to track multiple custom text stamps
-        if "stamps" not in st.session_state:
-            st.session_state.stamps = []
-            
-        # UI controls for creating a text stamp
-        st.subheader("🛠️ Create Text Overlay Stamp")
-        col1, col2 = st.columns(2)
-        with col1:
-            stamp_text = st.text_input("Text to add", placeholder="Type your text, name, or date here...")
-            target_page = st.number_input("Target Page Number", min_value=1, max_value=num_pages, value=1)
-            font_size = st.slider("Font Size", min_value=6, max_value=36, value=12)
-        with col2:
-            # Standard PDF coordinate points (Approx A4/Letter bounds)
-            x_pos = st.slider("Horizontal Position (Left to Right)", min_value=10, max_value=600, value=100, step=5)
-            y_pos = st.slider("Vertical Position (Bottom to Top)", min_value=10, max_value=800, value=700, step=5)
-            
-        if st.button("➕ Add Text Stamp to Document"):
-            if stamp_text:
-                st.session_state.stamps.append({
-                    "text": stamp_text,
-                    "page": target_page - 1, # 0-indexed for code
-                    "x": x_pos,
-                    "y": y_pos,
-                    "size": font_size
-                })
-                st.toast("Stamp added successfully!")
-            else:
-                st.warning("Please type some text before adding.")
-                
-        # Display current stamps list
-        if st.session_state.stamps:
-            st.subheader("📋 Active Stamps Layer Summary")
-            for i, s in enumerate(st.session_state.stamps):
-                st.text(f"[{i+1}] Page {s['page']+1}: '{s['text']}' at position ({s['x']}, {s['y']})")
-                
-            if st.button("🗑️ Clear All Stamps"):
-                st.session_state.stamps = []
-                st.rerun()
-                
-            # Process & Merge the layout overlays
-            if st.button("🚀 Burn Stamps onto PDF Document"):
-                writer = PdfWriter()
-                
-                # Loop through each page of original document
-                for idx in range(num_pages):
-                    orig_page = reader.pages[idx]
-                    
-                    # Filter stamps belonging to this specific page index loop
-                    page_stamps = [s for s in st.session_state.stamps if s["page"] == idx]
-                    
-                    if page_stamps:
-                        # Draw a transparent reportlab overlay layer
-                        packet = io.BytesIO()
-                        can = canvas.Canvas(packet, pagesize=letter)
-                        
-                        for stamp in page_stamps:
-                            can.setFont("Helvetica", stamp["size"])
-                            can.drawString(stamp["x"], stamp["y"], stamp["text"])
-                        can.save()
-                        
-                        packet.seek(0)
-                        overlay_reader = PdfReader(packet)
-                        overlay_page = overlay_reader.pages[0]
-                        
-                        # Merge text overlay vector graphics directly over original page
-                        orig_page.merge_page(overlay_page)
-                        
-                    writer.add_page(orig_page)
-                    
-                output = io.BytesIO()
-                writer.write(output)
-                
-                st.success("Successfully burned text elements directly into document layer architecture!")
-                st.download_button(
-                    label="📥 Download Final Stamped PDF",
-                    data=output.getvalue(),
-                    file_name=f"stamped_{uploaded_file.name}",
-                    mime="application/pdf"
-                )
+    # Render the dynamic interactive editor component using explicit pixel frames
+    components.html(editor_html, height=900, scrolling=True)
