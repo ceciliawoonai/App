@@ -18,4 +18,14 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          https://ceciliaai:$HF_TOKEN@huggingface.co/spaces/ceciliaai/main main
+          # 1. Create the specific metadata header Hugging Face requires to find Home.py
+          echo -e "---\ntitle: Main\nsdk: docker\napp_port: 7860\n---" > README.md
+          
+          # 2. Sync the configuration changes locally
+          git config --global user.email "deploy@github.com"
+          git config --global user.name "GitHub Actions"
+          git add README.md
+          git commit -m "Inject Hugging Face app entry points" --allow-empty
+          
+          # 3. Force push the clean code straight into the Space
+          git push --force https://ceciliaai:$HF_TOKEN@huggingface.co/spaces/ceciliaai/main main
