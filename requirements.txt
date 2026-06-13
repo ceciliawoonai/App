@@ -1,3 +1,5 @@
 streamlit
 pydub
 openpyxl
+pdfplumber
+pandas
