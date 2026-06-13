@@ -1,7 +1,2 @@
 streamlit
 pydub
-openpyxl
-pdfplumber
-pandas
-pypdf
-reportlab

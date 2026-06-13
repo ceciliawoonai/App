@@ -5,7 +5,6 @@ ENV STREAMLIT_SERVER_PORT=7860
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV PYTHONUNBUFFERED=1
 
-# Clean install ONLY ffmpeg (lightweight, fits completely inside free memory limits)
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

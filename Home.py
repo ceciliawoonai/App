@@ -8,5 +8,5 @@ st.write("Select an application from the sidebar to get started.")
 st.markdown("""
 ### Available Apps:
 * **🎵 Audio Compressor**: Shrink audio files down to fit perfectly under 23MB.
-* *(More apps coming soon!)*
+* **🌀 Spiral Visualizer**: Adjust mathematical parameters to see a spiral chart.
 """)
